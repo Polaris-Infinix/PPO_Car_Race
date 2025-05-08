@@ -11,6 +11,8 @@ act=Network()
 done= False
 while not done:
     state, reward, truncated, done= env.input()
-    act.get_action_and_value(state)
+    
+    act.get_action_and_value(state.unsqueeze(0))
+
 
     done=truncated or done 

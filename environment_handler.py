@@ -11,7 +11,7 @@ class Environment():
 
     def create_env(self):
         self.env = gym.make("CarRacing-v3",render_mode="human", lap_complete_percent=1, domain_randomize=False, continuous=True, max_episode_steps=1050)
-
+        # print(np.prod(self.env.single_action_space.shape))
            
     
     #Run first 50 frames without action or obeservation  as this is the intro 
