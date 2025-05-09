@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 from  torch.distributions import Normal
+import torch.optim as optim 
 
 # Layer initialization 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -37,21 +38,45 @@ class Network(nn.Module):
             nn.ReLU(),
             layer_init(nn.Linear(512,1)),
         )
+        self.actor_optimizer=optim.Adam(self.actor.parameters(),lr=0.02)
+        self.critic_optimizer=optim.Adam(self.critic.parameters(),lr=0.02)
+        self.device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
 
     def get_action_and_value(self,state):
         mean=self.actor(state)
         value=self.critic(state)
         std=torch.exp(self.log_std)
         dist=Normal(mean,std)
-        print(mean,std)
+        # print(mean,std)
         raction=dist.rsample()
         action=torch.tanh(raction)
-        print(action)
+        # print(action)
         log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
         log_prob = log_prob.sum(dim=-1)
         return action, log_prob, value
+    
+    # def checkpoint():
 
 
+    
+
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         # value=self.critic(state)
         # mean=self.actor(state)
         # action_logstd=mean
@@ -59,11 +84,6 @@ class Network(nn.Module):
         # probs=Normal(mean,action_std)
         # action=probs.sample()
         # print(probs.log_prob(action),action)
-
-
-
-    
-
-    def forward(self,image):
-        print(self.actor(image.unsqueeze(0)).size())
+        #  # def forward(self,image):
+        #print(self.actor(image.unsqueeze(0)).size())
 
