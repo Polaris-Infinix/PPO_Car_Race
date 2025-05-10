@@ -17,6 +17,7 @@ while not done:
     state,reward,truncated,done=env.input(action[0].detach().numpy())
     action,log_prob,value=act.get_action_and_value(state.unsqueeze(0))
     print(action,log_prob,value)
+    
 
 
 

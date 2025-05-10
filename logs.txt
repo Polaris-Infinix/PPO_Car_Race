@@ -1,0 +1,18 @@
+So there are 1000 frames 
+the first 200 frames 
+    record and roll out the frame after 200 frames 
+    if the episode is terminated 
+        start from frame 0 again 
+the second 200 
+    record and roll out the frame after 200 frames 
+        if the episode is terminated 
+        IF THE EPISODE IS TERMINATED THE CHANGES ARE DONE 
+         start from frame 0 again 
+the same continuous 
+
+
+
+
+THe policy rollout is for evey 200 frames, if there episode is terminated the training will start from the beggining
+
+
