@@ -3,6 +3,7 @@ import numpy as np
 import torch.nn as nn
 from  torch.distributions import Normal
 import torch.optim as optim 
+from collections import deque
 
 # Layer initialization 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -56,27 +57,7 @@ class Network(nn.Module):
         log_prob = log_prob.sum(dim=-1)
         return action, log_prob, value
     
-    # def checkpoint():
-
-
-    
-
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+    # def checkpoint(
         # value=self.critic(state)
         # mean=self.actor(state)
         # action_logstd=mean
@@ -87,3 +68,60 @@ class Network(nn.Module):
         #  # def forward(self,image):
         #print(self.actor(image.unsqueeze(0)).size())
 
+
+class Memory:
+    def __init__(self, batch_size=5):
+        self.states = []
+        self.probs = []
+        self.vals = []
+        self.actions = []
+        self.rewards = []
+        self.dones = []
+        self.batch_size = batch_size
+
+    def generate_batches(self):
+        n_states = len(self.states)
+        batch_start = np.arange(0, n_states, self.batch_size)
+        indices = np.arange(n_states, dtype=np.int64)
+        np.random.shuffle(indices)
+        batches = [indices[i:i + self.batch_size] for i in batch_start]
+
+        return np.array(self.states),\
+            np.array(self.actions), \
+            np.array(self.probs), \
+            np.array(self.vals), \
+            np.array(self.rewards), \
+            np.array(self.dones), \
+            batches
+
+    def store_memory(self, state, action, probs, vals, reward, done):
+        self.states.append(state)
+        self.actions.append(action)
+        self.probs.append(probs)
+        self.vals.append(vals)
+        self.rewards.append(reward)
+        self.dones.append(done)
+
+    def clear_memory(self):
+        self.states = []
+        self.probs = []
+        self.actions = []
+        self.rewards = []
+        self.dones = []
+        self.vals = []
+    
+    def advantages(self,gamma=0.99,lamda=0.95):
+        values=self.vals
+        rewards=self.rewards
+        values.append(0)
+        adv=deque(maxlen=len(rewards))
+        for i in range(len(rewards)):
+            delta=gamma*values[i+1]-values[i]+rewards[i]
+            for i in adv:
+                delta=adv[0]*gamma*lamda+delta
+                break
+            
+            adv.appendleft(delta)
+        return adv
+
+            
