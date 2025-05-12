@@ -15,16 +15,17 @@ device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 for i in range(200): 
     for i in range(1): #nuances in my code 
         state, reward, truncated, done= env.input()
-        action,log_prob,value=act.get_action_and_value(state.unsqueeze(0).to(device))
+        action,log_prob,value,entropy=act.get_action_and_value(state.unsqueeze(0).to(device))
     
-    state,reward,truncated,entropy=env.input(action[0].detach().numpy())
+    state,reward,truncated,done=env.input(action[0])
 
-    action,log_prob,value=act.get_action_and_value(state.unsqueeze(0).to(device))
+    action,log_prob,value,entropy=act.get_action_and_value(state.unsqueeze(0).to(device))
     # print(action,log_prob,value)
     done=truncated or done 
-    memory.store_memory(state,action,log_prob,value,reward,entropy)
+    memory.store_memory(state,action,log_prob,value,reward,done)
 
 adv=memory.advantages()
+print("very good")
 memory.learn()
 
     

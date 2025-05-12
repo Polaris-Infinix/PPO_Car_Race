@@ -77,7 +77,7 @@ class Memory:
         self.vals = []
         self.actions = []
         self.rewards = []
-        self.entropy = []
+        self.done = []
         self.batch_size = batch_size
 
     def generate_batches(self):
@@ -86,29 +86,30 @@ class Memory:
         indices = np.arange(n_states, dtype=np.int64)
         np.random.shuffle(indices)
         batches = [indices[i:i + self.batch_size] for i in batch_start]
+        print(self.vals)
 
         return np.array(self.states),\
             np.array(self.actions), \
             np.array(self.probs), \
             np.array(self.vals), \
             np.array(self.rewards), \
-            np.array(self.entropy), \
+            np.array(self.done), \
             batches
 
-    def store_memory(self, state, action, probs, vals, reward, entropy):
+    def store_memory(self, state, action, probs, vals, reward, done):
         self.states.append(tonumpy(state))
-        self.actions.append(tonumpy(action))
-        self.probs.append(tonumpy(probs))
-        self.vals.append(tonumpy(vals))
+        self.actions.append(action)
+        self.probs.append(probs)
+        self.vals.append(tonumpy(vals[0][0]))
         self.rewards.append(reward)
-        self.entropy.append(tonumpy(entropy))
+        self.done.append((done))
 
     def clear_memory(self):
         self.states = []
         self.probs = []
         self.actions = []
         self.rewards = []
-        self.entropy = []
+        self.done = []
         self.vals = []
     
     def advantages(self,gamma=0.99,lamda=0.95):
@@ -126,7 +127,16 @@ class Memory:
         return adv
     
     def learn(self):
-        states,actions,probs,values,rewards,entropy=self.generate_batches()
-        print(states)
-        
+        states,actions,probs,values,rewards,entropy,batches=self.generate_batches()
+        print(states.shape)
+        print(values)
+        print(actions.shape)
+        print(actions)
+        print(probs.shape)
+        print(probs)
+        print(rewards.shape)
+        print(batches)
+
+
+
          
