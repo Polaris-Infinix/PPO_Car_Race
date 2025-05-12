@@ -17,17 +17,15 @@ for i in range(200):
         state, reward, truncated, done= env.input()
         action,log_prob,value=act.get_action_and_value(state.unsqueeze(0).to(device))
     
-    action=torch.Tensor.cpu(action)
-    state,reward,truncated,done=env.input(action[0].detach().numpy())
+    state,reward,truncated,entropy=env.input(action[0].detach().numpy())
 
     action,log_prob,value=act.get_action_and_value(state.unsqueeze(0).to(device))
     # print(action,log_prob,value)
     done=truncated or done 
-    memory.store_memory(state,action,log_prob,value,reward,done)
+    memory.store_memory(state,action,log_prob,value,reward,entropy)
 
 adv=memory.advantages()
-print(adv)
-
+memory.learn()
 
     
     

@@ -16,3 +16,16 @@ the same continuous
 THe policy rollout is for evey 200 frames, if there episode is terminated the training will start from the beggining
 
 
+        # print(action)
+        
+    # def checkpoint(
+        # value=self.critic(state)
+        # mean=self.actor(state)
+        # action_logstd=mean
+        # action_std=torch.exp(action_logstd)
+        # probs=Normal(mean,action_std)
+        # action=probs.sample()
+        # print(probs.log_prob(action),action)
+        #  # def forward(self,image):
+        #print(self.actor(image.unsqueeze(0)).size())
+

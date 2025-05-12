@@ -5,6 +5,10 @@ from  torch.distributions import Normal
 import torch.optim as optim 
 from collections import deque
 
+def tonumpy(tensor):
+    tensor=tensor.to("cpu")
+    tensor=tensor.detach()
+    return tensor.numpy()
 # Layer initialization 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
@@ -44,30 +48,27 @@ class Network(nn.Module):
         self.device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
-    def get_action_and_value(self,state):
+    def get_action_and_value(self,state,action=None):
         mean=self.actor(state)
         value=self.critic(state)
         std=torch.exp(self.log_std)
         dist=Normal(mean,std)
-        # print(mean,std)
-        raction=dist.rsample()
-        action=torch.tanh(raction)
-        # print(action)
-        log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
-        log_prob = log_prob.sum(dim=-1)
-        return action, log_prob, value
-    
-    # def checkpoint(
-        # value=self.critic(state)
-        # mean=self.actor(state)
-        # action_logstd=mean
-        # action_std=torch.exp(action_logstd)
-        # probs=Normal(mean,action_std)
-        # action=probs.sample()
-        # print(probs.log_prob(action),action)
-        #  # def forward(self,image):
-        #print(self.actor(image.unsqueeze(0)).size())
+        entropy=dist.entropy().sum(dim=-1)
+        if action is None:
+            raction=dist.rsample()
+            action=torch.tanh(raction)
+            log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
+            log_prob = log_prob.sum(dim=-1)
+            action=tonumpy(action)
+            log_prob=tonumpy(log_prob)
 
+        else:
+            raction = torch.atanh(torch.clamp(action, -0.999, 0.999))
+            log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
+            log_prob = log_prob.sum(dim=-1)
+        
+        return action, log_prob, value, entropy
+    
 
 class Memory:
     def __init__(self, batch_size=5):
@@ -76,7 +77,7 @@ class Memory:
         self.vals = []
         self.actions = []
         self.rewards = []
-        self.dones = []
+        self.entropy = []
         self.batch_size = batch_size
 
     def generate_batches(self):
@@ -91,23 +92,23 @@ class Memory:
             np.array(self.probs), \
             np.array(self.vals), \
             np.array(self.rewards), \
-            np.array(self.dones), \
+            np.array(self.entropy), \
             batches
 
-    def store_memory(self, state, action, probs, vals, reward, done):
-        self.states.append(state)
-        self.actions.append(action)
-        self.probs.append(probs)
-        self.vals.append(vals)
+    def store_memory(self, state, action, probs, vals, reward, entropy):
+        self.states.append(tonumpy(state))
+        self.actions.append(tonumpy(action))
+        self.probs.append(tonumpy(probs))
+        self.vals.append(tonumpy(vals))
         self.rewards.append(reward)
-        self.dones.append(done)
+        self.entropy.append(tonumpy(entropy))
 
     def clear_memory(self):
         self.states = []
         self.probs = []
         self.actions = []
         self.rewards = []
-        self.dones = []
+        self.entropy = []
         self.vals = []
     
     def advantages(self,gamma=0.99,lamda=0.95):
@@ -123,5 +124,9 @@ class Memory:
             
             adv.appendleft(delta)
         return adv
-
-            
+    
+    def learn(self):
+        states,actions,probs,values,rewards,entropy=self.generate_batches()
+        print(states)
+        
+         
