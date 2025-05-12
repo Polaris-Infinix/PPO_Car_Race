@@ -10,10 +10,14 @@ def tonumpy(tensor):
     tensor=tensor.detach()
     return tensor.numpy()
 # Layer initialization 
+
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
+
+device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 class Network(nn.Module):
     def __init__(self):
@@ -59,8 +63,9 @@ class Network(nn.Module):
             action=torch.tanh(raction)
             log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
             log_prob = log_prob.sum(dim=-1)
+            action=action.squeeze(0)
             action=tonumpy(action)
-            log_prob=tonumpy(log_prob)
+            log_prob=tonumpy(log_prob.squeeze(0))
 
         else:
             raction = torch.atanh(torch.clamp(action, -0.999, 0.999))
@@ -71,6 +76,7 @@ class Network(nn.Module):
     
 
 class Memory:
+
     def __init__(self, batch_size=5):
         self.states = []
         self.probs = []
@@ -79,6 +85,7 @@ class Memory:
         self.rewards = []
         self.done = []
         self.batch_size = batch_size
+        self.policy=Network()
 
     def generate_batches(self):
         n_states = len(self.states)
@@ -86,8 +93,7 @@ class Memory:
         indices = np.arange(n_states, dtype=np.int64)
         np.random.shuffle(indices)
         batches = [indices[i:i + self.batch_size] for i in batch_start]
-        print(self.vals)
-
+    
         return np.array(self.states),\
             np.array(self.actions), \
             np.array(self.probs), \
@@ -124,18 +130,39 @@ class Memory:
                 break
             
             adv.appendleft(delta)
+        adv=np.array(list(adv))
         return adv
     
     def learn(self):
-        states,actions,probs,values,rewards,entropy,batches=self.generate_batches()
-        print(states.shape)
-        print(values)
-        print(actions.shape)
-        print(actions)
-        print(probs.shape)
-        print(probs)
-        print(rewards.shape)
-        print(batches)
+        advantage=self.advantages()
+        states,actions,probs,values,rewards,done,batches=self.generate_batches()
+        for batch in batches:
+            states=torch.tensor(states[batch]).to(device)
+            actions=torch.tensor(actions[batch]).to(device)
+            probs=torch.tensor(probs[batch]).to(device)
+            # rewards=torch.tensor(rewards[batch]).to(device)
+            # values=torch.tensor(values[batch]).to(device)
+            # dist=self.policy.actor(states)
+            self.policy.get_action_and_value(actions)
+            print(states.size())
+            
+
+
+        
+        
+        
+        
+        
+        # print(states.shape)
+        # print(values)
+        # print(actions.shape)
+        # print(actions)
+        # print(probs.shape)
+        # print(probs)
+        # print(rewards.shape)
+        # print(rewards)
+        # print(batches) #Worked lol 
+
 
 
 

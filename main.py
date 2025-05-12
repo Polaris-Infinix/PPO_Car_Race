@@ -17,7 +17,7 @@ for i in range(200):
         state, reward, truncated, done= env.input()
         action,log_prob,value,entropy=act.get_action_and_value(state.unsqueeze(0).to(device))
     
-    state,reward,truncated,done=env.input(action[0])
+    state,reward,truncated,done=env.input(action)
 
     action,log_prob,value,entropy=act.get_action_and_value(state.unsqueeze(0).to(device))
     # print(action,log_prob,value)
@@ -25,6 +25,7 @@ for i in range(200):
     memory.store_memory(state,action,log_prob,value,reward,done)
 
 adv=memory.advantages()
+print(adv)
 print("very good")
 memory.learn()
 
