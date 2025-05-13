@@ -11,6 +11,7 @@ act=Network()
 memory=Memory()
 done= False
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 #Trajectory created for 200 episodes each 
 for i in range(200): 
     for i in range(1): #nuances in my code 
