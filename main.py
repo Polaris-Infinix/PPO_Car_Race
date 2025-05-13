@@ -24,8 +24,6 @@ for i in range(200):
     done=truncated or done 
     memory.store_memory(state,action,log_prob,value,reward,done)
 
-adv=memory.advantages()
-print(adv)
 print("very good")
 memory.learn()
 

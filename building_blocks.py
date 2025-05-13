@@ -52,11 +52,12 @@ class Network(nn.Module):
         self.device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
-    def get_action_and_value(self,state,action=None,mean=None):
+    def get_action_and_value(self,state,action=None):
         mean=self.actor(state)
         value=self.critic(state)
         std=torch.exp(self.log_std)
         dist=Normal(mean,std)
+        entropy=dist.entropy()
         if action is None:
             entropy=dist.entropy().sum(dim=-1)
             std=torch.exp(self.log_std)
@@ -137,32 +138,40 @@ class Memory:
     
     def learn(self):
         advantage=self.advantages()
+        advantage=torch.tensor(advantage).to(device)
         states,actions,probs,values,rewards,done,batches=self.generate_batches()
+        values=torch.tensor(values).to(device)
         for batch in batches:
             states=torch.tensor(states[batch]).to(device)
             actions=torch.tensor(actions[batch]).to(device)
             probs=torch.tensor(probs[batch]).to(device)
-            critic_value=self.policy.critic(states)
+            # critic_value=self.policy.critic(states)
             # rewards=torch.tensor(rewards[batch]).to(device)
             # values=torch.tensor(values[batch]).to(device)
-            mean,log_std=self.policy.actor(states)
             # log=self.policy.log_std Assuming its not required 
-            _,log_prob,_,entropy=self.policy.get_action_and_value(actions,mean,log_std)
+            _,log_prob,critic_value,awa=self.policy.get_action_and_value(states,actions)
             # print(states.size())
             old_probs=torch.exp(probs)
             new_probs=torch.exp(log_prob)
+
             r_t= new_probs/old_probs            
             weighted_probs=advantage[batch]*r_t
-            clip_weighted_probs=advantage[batch]*torch.clamp(r_t,1-0.2,1+0.2)
-            actor_loss=-torch.min(weighted_probs,clip_weighted_probs)
+            clip_weighted_probs=advantage[batch]*torch.clamp(r_t,0.8,1.2)
+            actor_loss=-torch.min(weighted_probs,clip_weighted_probs).mean()
+
             returns=advantage[batch]+values[batch]
-            critic_loss=(returns-critic_value.squeeze(0))
+            critic_loss=(returns-critic_value.squeeze(0))**2
+            critic_loss=critic_loss.mean()
+
             total_loss=actor_loss+0.5*critic_loss
+
             self.policy.actor_optimizer.zero_grad()
             self.policy.critic_optimizer.zero_grad()
             total_loss.backward()
             self.policy.actor_optimizer.step()
             self.policy.critic_optimizer.step()
+            print("well Done")
+
         self.clear_memory()
 
 
