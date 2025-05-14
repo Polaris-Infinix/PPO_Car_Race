@@ -78,7 +78,7 @@ class Network(nn.Module):
         return action, log_prob,value,entropy
     
 
-class Memory:
+class Memory(Network):
 
     def __init__(self, batch_size=5):
         self.states = []
@@ -88,7 +88,8 @@ class Memory:
         self.rewards = []
         self.done = []
         self.batch_size = batch_size
-        self.policy=Network()
+        #self.policy=Network()
+        super(Memory,self).__init__()
 
     def generate_batches(self):
         n_states = len(self.states)
@@ -148,7 +149,7 @@ class Memory:
                 states=torch.from_numpy(state[batch]).to(device)
                 actions=torch.from_numpy(action[batch]).to(device)
                 probs=torch.from_numpy(prob[batch]).to(device)
-                _,log_prob,critic_value,awa=self.policy.get_action_and_value(states,actions)
+                _,log_prob,critic_value,awa=self.get_action_and_value(states,actions)
                 old_probs=torch.exp(probs)
                 new_probs=torch.exp(log_prob)
 
@@ -162,20 +163,19 @@ class Memory:
                 critic_loss=critic_loss.mean()
 
                 total_loss=actor_loss+0.5*critic_loss
-
-                self.policy.actor_optimizer.zero_grad()
-                self.policy.critic_optimizer.zero_grad()
+                self.total_loss_wab=total_loss
+                self.returns=returns.mean()
+                self.actor_optimizer.zero_grad()
+                self.critic_optimizer.zero_grad()
                 total_loss.backward()
-                self.policy.actor_optimizer.step()
-                self.policy.critic_optimizer.step()
-
-
-        # self.clear_memory()
+                self.actor_optimizer.step()
+                self.critic_optimizer.step()
+            #print("epoch")
+        self.clear_memory()
 
 
 #idk what's wrong
-
-
+#adding Entropy
 
 
 
