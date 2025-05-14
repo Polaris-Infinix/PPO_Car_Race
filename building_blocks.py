@@ -47,8 +47,8 @@ class Network(nn.Module):
             nn.ReLU(),
             layer_init(nn.Linear(512,1)),
         )
-        self.actor_optimizer=optim.Adam(self.actor.parameters(),lr=0.02)
-        self.critic_optimizer=optim.Adam(self.critic.parameters(),lr=0.02)
+        self.actor_optimizer=optim.Adam(self.actor.parameters(),lr=2.5e-4)
+        self.critic_optimizer=optim.Adam(self.critic.parameters(),lr=1e-3)
         self.device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
@@ -112,7 +112,7 @@ class Memory(Network):
         self.probs.append(probs)
         self.vals.append(tonumpy(vals[0][0]))
         self.rewards.append(reward)
-        self.done.append((done))
+        self.done.append((tonumpy(done)))
 
     def clear_memory(self):
         self.states = []
@@ -121,7 +121,11 @@ class Memory(Network):
         self.rewards = []
         self.done = []
         self.vals = []
+
+    def give_only_reward(self):
+        return sum(self.rewards)
     
+
     def advantages(self,gamma=0.99,lamda=0.95):
         values=self.vals
         rewards=self.rewards
@@ -141,14 +145,15 @@ class Memory(Network):
         advantage=self.advantages()
         advantage=torch.tensor(advantage).to(device)
         for _ in range(10):
-            state,action,prob,values,rewards,done,batches=self.generate_batches()
-        
+            state,action,prob,values,rewards,entropy,batches=self.generate_batches()
+            
             values=torch.from_numpy(values).to(device)
         
             for batch in batches:
                 states=torch.from_numpy(state[batch]).to(device)
                 actions=torch.from_numpy(action[batch]).to(device)
                 probs=torch.from_numpy(prob[batch]).to(device)
+                ety=torch.from_numpy(entropy[batch]).to(device)
                 _,log_prob,critic_value,awa=self.get_action_and_value(states,actions)
                 old_probs=torch.exp(probs)
                 new_probs=torch.exp(log_prob)
@@ -161,8 +166,8 @@ class Memory(Network):
                 returns=advantage[batch]+values[batch]
                 critic_loss=(returns-critic_value.squeeze(0))**2
                 critic_loss=critic_loss.mean()
-
-                total_loss=actor_loss+0.5*critic_loss
+                ety=ety.mean()
+                total_loss=actor_loss+0.5*critic_loss-0.01*ety
                 self.total_loss_wab=total_loss
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
@@ -172,6 +177,16 @@ class Memory(Network):
                 self.critic_optimizer.step()
             #print("epoch")
         self.clear_memory()
+
+    def save_model(self, filename="ppo_checkpoint.pth"):
+        torch.save({
+            "actor_state_dict": self.actor.state_dict(),
+            "critic_state_dict": self.critic.state_dict(),
+            "log_std": self.log_std,
+            "actor_optimizer_state_dict": self.actor_optimizer.state_dict(),
+            "critic_optimizer_state_dict": self.critic_optimizer.state_dict(),
+        }, "ppo_checkpoint.pth")
+
 
 
 #idk what's wrong

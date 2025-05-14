@@ -15,7 +15,7 @@ episodes=2000
 
 wandb.init(
     project="ppo-atari",          
-    name="run-001",              
+    name="run-004",              
     config={
         "learning_rate": 0.0002,
         "batch_size": 200,
@@ -24,9 +24,8 @@ wandb.init(
         "env": "Car Racing"
     }
 )
-
-i=0
-k=0
+total_rewards=[]
+i,k=0,0
 #Trajectory created for 200 episodes each 
 while k <episodes:
     while i<200:
@@ -37,21 +36,26 @@ while k <episodes:
         state,reward,truncated,done=env.input(action)
 
         action,log_prob,value,entropy=memory.get_action_and_value(state.unsqueeze(0).to(device))
-        # print(action,log_prob,value)
         done=truncated or done 
-        memory.store_memory(state,action,log_prob,value,reward,done)
+        memory.store_memory(state,action,log_prob,value,reward,entropy)
         i+=1
         if done:
             break
+    total_rewards.append(memory.give_only_reward())
     memory.learn()
     i=0
+    
     if done:
         env.dry_run()
         k=k+1
+        total=sum(total_rewards)
         wandb.log({
             "Total_loss": memory.total_loss_wab,
-            "returns": memory.returns
+            "returns": total,
+            "step": k
             })
+        memory.save_model()
+        total_rewards=[]
 
     
         
