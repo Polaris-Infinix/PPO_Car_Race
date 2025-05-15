@@ -25,9 +25,11 @@ wandb.init(
     }
 )
 total_rewards=[]
+totalepisodeslength=[]
 i,k=0,0
+memory.load_model()
 #Trajectory created for 200 episodes each 
-while k <episodes:
+while k < episodes:
     while i<200:
         for j in range(1): #nuances in my code 
             state, reward, truncated, done= env.input()
@@ -42,6 +44,8 @@ while k <episodes:
         if done:
             break
     total_rewards.append(memory.give_only_reward())
+    totalepisodeslength.append(i)
+    print(totalepisodeslength,total_rewards)
     memory.learn()
     i=0
     
@@ -49,24 +53,13 @@ while k <episodes:
         env.dry_run()
         k=k+1
         total=sum(total_rewards)
+        tol_epi_len=sum(totalepisodeslength)
         wandb.log({
+            "Episode_length":tol_epi_len,
             "Total_loss": memory.total_loss_wab,
             "returns": total,
-            "step": k
+            "Step": k-1
             })
         memory.save_model()
         total_rewards=[]
-
-    
-        
-
-        
-
-
-
-
-
-
-    
-    
-
+        totalepisodeslength=[]

@@ -153,10 +153,11 @@ class Memory(Network):
                 states=torch.from_numpy(state[batch]).to(device)
                 actions=torch.from_numpy(action[batch]).to(device)
                 probs=torch.from_numpy(prob[batch]).to(device)
-                ety=torch.from_numpy(entropy[batch]).to(device)
+                # ety=torch.from_numpy(entropy[batch]).to(device)
                 _,log_prob,critic_value,awa=self.get_action_and_value(states,actions)
                 old_probs=torch.exp(probs)
                 new_probs=torch.exp(log_prob)
+                ety=awa.mean()
 
                 r_t= new_probs/old_probs            
                 weighted_probs=advantage[batch]*r_t
@@ -166,8 +167,8 @@ class Memory(Network):
                 returns=advantage[batch]+values[batch]
                 critic_loss=(returns-critic_value.squeeze(0))**2
                 critic_loss=critic_loss.mean()
-                ety=ety.mean()
-                total_loss=actor_loss+0.5*critic_loss-0.01*ety
+                # ety=ety.mean()
+                total_loss=actor_loss+0.5*critic_loss-0.1*ety
                 self.total_loss_wab=total_loss
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
@@ -186,6 +187,15 @@ class Memory(Network):
             "actor_optimizer_state_dict": self.actor_optimizer.state_dict(),
             "critic_optimizer_state_dict": self.critic_optimizer.state_dict(),
         }, "ppo_checkpoint.pth")
+
+    def load_model(self, filename="ppo_checkpoint.pth"):
+        checkpoint = torch.load(filename, map_location=device)
+        self.actor.load_state_dict(checkpoint["actor_state_dict"])
+        self.critic.load_state_dict(checkpoint["critic_state_dict"])
+        self.log_std = checkpoint["log_std"] 
+        self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer_state_dict"])
+        self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer_state_dict"])
+        self.to(device)
 
 
 

@@ -10,7 +10,7 @@ class Environment():
         pass
 
     def create_env(self):
-        self.env = gym.make("CarRacing-v3", lap_complete_percent=1, domain_randomize=False, continuous=True, max_episode_steps=1050)
+        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="human", domain_randomize=False, continuous=True, max_episode_steps=1050)
         # print(np.prod(self.env.single_action_space.shape))
            
     
