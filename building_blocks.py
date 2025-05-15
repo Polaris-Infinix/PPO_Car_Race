@@ -165,7 +165,7 @@ class Memory(Network):
                 critic_loss=(returns-critic_value.squeeze(0))**2
                 critic_loss=critic_loss.mean()
                 # ety=ety.mean()
-                total_loss=actor_loss+0.5*critic_loss-0.01*entropy.mean()
+                total_loss=actor_loss+0.5*critic_loss-0.1*entropy.mean()
                 self.total_loss_wab=total_loss
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
