@@ -57,9 +57,8 @@ class Network(nn.Module):
         value=self.critic(state)
         std=torch.exp(self.log_std)
         dist=Normal(mean,std)
-        entropy=dist.entropy()
+
         if action is None:
-            entropy=dist.entropy().sum(dim=-1)
             std=torch.exp(self.log_std)
             dist=Normal(mean,std)
             raction=dist.rsample()
@@ -67,6 +66,7 @@ class Network(nn.Module):
             log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
             log_prob = log_prob.sum(dim=-1)
             action=action.squeeze(0)
+            entropy=dist.entropy().sum(dim=-1)
             action=tonumpy(action)
             log_prob=tonumpy(log_prob.squeeze(0))
 
@@ -74,6 +74,7 @@ class Network(nn.Module):
             raction = torch.atanh(torch.clamp(action, -0.999, 0.999))
             log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
             log_prob = log_prob.sum(dim=-1)
+            entropy=dist.entropy().sum(dim=-1)
         
         return action, log_prob,value,entropy
     
@@ -127,16 +128,14 @@ class Memory(Network):
     
 
     def advantages(self,gamma=0.99,lamda=0.95):
-        values=self.vals
+        values=self.vals.copy()
         rewards=self.rewards
         values.append(0)
         adv=deque(maxlen=len(rewards))
-        for i in range(len(rewards)):
-            delta=gamma*values[i+1]-values[i]+rewards[i]
-            for i in adv:
-                delta=adv[0]*gamma*lamda+delta
-                break
-            
+        for t in range(len(rewards)):
+            delta=gamma*values[t+1]-values[t]+rewards[t]
+            if adv:
+                delta = adv[0] * gamma * lamda + delta       
             adv.appendleft(delta)
         adv=np.array(list(adv))
         return adv
@@ -153,11 +152,9 @@ class Memory(Network):
                 states=torch.from_numpy(state[batch]).to(device)
                 actions=torch.from_numpy(action[batch]).to(device)
                 probs=torch.from_numpy(prob[batch]).to(device)
-                # ety=torch.from_numpy(entropy[batch]).to(device)
-                _,log_prob,critic_value,awa=self.get_action_and_value(states,actions)
+                _,log_prob,critic_value,entropy=self.get_action_and_value(states,actions)
                 old_probs=torch.exp(probs)
                 new_probs=torch.exp(log_prob)
-                ety=awa.mean()
 
                 r_t= new_probs/old_probs            
                 weighted_probs=advantage[batch]*r_t
@@ -168,7 +165,7 @@ class Memory(Network):
                 critic_loss=(returns-critic_value.squeeze(0))**2
                 critic_loss=critic_loss.mean()
                 # ety=ety.mean()
-                total_loss=actor_loss+0.5*critic_loss-0.1*ety
+                total_loss=actor_loss+0.5*critic_loss-0.01*entropy.mean()
                 self.total_loss_wab=total_loss
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()

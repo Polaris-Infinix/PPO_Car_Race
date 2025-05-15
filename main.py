@@ -27,7 +27,6 @@ wandb.init(
 total_rewards=[]
 totalepisodeslength=[]
 i,k=0,0
-memory.load_model()
 #Trajectory created for 200 episodes each 
 while k < episodes:
     while i<200:
