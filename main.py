@@ -3,6 +3,10 @@ import wandb
 from environment_handler import Environment
 from building_blocks import *
 
+#hyperparameters
+load=False 
+
+
 # WandB Login 
 wandb.login()
 env=Environment()
@@ -27,7 +31,9 @@ wandb.init(
 total_rewards=[]
 totalepisodeslength=[]
 i,k=0,0
-memory.load_model()
+if load is True:
+    memory.load_model() 
+
 #Trajectory created for 200 episodes each 
 while k < episodes:
     while i<200:
@@ -42,6 +48,7 @@ while k < episodes:
         memory.store_memory(state,action,log_prob,value,reward,entropy)
         i+=1
         if done:
+            print(truncated, done)
             break
     total_rewards.append(memory.give_only_reward())
     totalepisodeslength.append(i)

@@ -10,7 +10,7 @@ class Environment():
         pass
 
     def create_env(self):
-        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True, max_episode_steps=1050)
+        self.env = gym.make("CarRacing-v2", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True, max_episode_steps=1050, disable_progress_timeout=True)
         # print(np.prod(self.env.single_action_space.shape))
            
     
@@ -37,6 +37,7 @@ class Environment():
         # print(state.size())
         self.obs_l=self.obs_m
         self.obs_m=self.obs_r
+        print(info)
         return state,reward,done,truncated
     
         
