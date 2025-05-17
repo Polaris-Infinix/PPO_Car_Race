@@ -4,7 +4,10 @@ from environment_handler import Environment
 from building_blocks import *
 
 #hyperparameters
-load=False 
+load=True 
+episode_length=200
+episodes=2000
+
 
 
 # WandB Login 
@@ -14,8 +17,6 @@ env.dry_run()
 memory=Memory()
 done= False
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-episode_length=200
-episodes=2000
 
 wandb.init(
     project="ppo-atari",          
@@ -36,7 +37,7 @@ if load is True:
 
 #Trajectory created for 200 episodes each 
 while k < episodes:
-    while i<200:
+    while i<episode_length:
         for j in range(1): #nuances in my code 
             state, reward, truncated, done= env.input()
             action,log_prob,value,entropy=memory.get_action_and_value(state.unsqueeze(0).to(device))
@@ -48,7 +49,6 @@ while k < episodes:
         memory.store_memory(state,action,log_prob,value,reward,entropy)
         i+=1
         if done:
-            print(truncated, done)
             break
     total_rewards.append(memory.give_only_reward())
     totalepisodeslength.append(i)
