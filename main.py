@@ -4,7 +4,7 @@ from environment_handler import Environment
 from building_blocks import *
 
 #hyperparameters
-load=True 
+load=False
 episode_length=200
 episodes=2000
 

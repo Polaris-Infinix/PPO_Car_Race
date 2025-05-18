@@ -59,22 +59,59 @@ class Network(nn.Module):
         dist=Normal(mean,std)
 
         if action is None:
-            std=torch.exp(self.log_std)
-            dist=Normal(mean,std)
-            raction=dist.rsample()
-            action=torch.tanh(raction)
-            log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
-            log_prob = log_prob.sum(dim=-1)
-            action=action.squeeze(0)
+            raction=dist.rsample().squeeze(0)
+            raction_0 = raction[0:1]  
+            raction_1 = raction[1:3]
+
+
+            action_0 = torch.tanh(raction_0)
+            action_1 = torch.sigmoid(raction_1)
+            action = torch.cat((action_0, action_1), dim=-1)  
+        
+            print(dist.log_prob(raction))
+            log_prob_0 = dist.log_prob(raction).squeeze()[0] - torch.log(1 - action_0.pow(2) + 1e-6)
+            log_prob_1 = dist.log_prob(raction).squeeze()[1] - torch.log(action_1[0] * (1 - action_1[0]) + 1e-6)
+            log_prob_2 = dist.log_prob(raction).squeeze()[2] - torch.log(action_1[1] * (1 - action_1[1]) + 1e-6)
+            print(log_prob_0)
+            print(log_prob_1)
+            print(log_prob_2)
+
+            log_prob = log_prob_0 + log_prob_1 + log_prob_2
+            print("log")
+            action=torch.cat((action_0,action_1),dim=-1)
             entropy=dist.entropy().sum(dim=-1)
             action=tonumpy(action)
-            log_prob=tonumpy(log_prob.squeeze(0))
+            log_prob=tonumpy(log_prob.squeeze())
+            print(log_prob)
+            print(f"No Grad strings-{action}")
 
         else:
-            raction = torch.atanh(torch.clamp(action, -0.999, 0.999))
-            log_prob = dist.log_prob(raction) - torch.log(1 - action.pow(2) + 1e-6)
-            log_prob = log_prob.sum(dim=-1)
-            entropy=dist.entropy().sum(dim=-1)
+           print("Given action")
+           print(action)
+           raction=dist.rsample().squeeze(0)
+           print(raction)
+           raction_0 = raction[...,0:1]  
+           print(raction_0)
+           raction_1 = raction[...,1:3]  
+           print(raction_1)
+           action_0=action[...,0:1]
+           action_1=action[...,1:3]
+           print("actions")
+           print(action_0,action_1)
+
+
+           
+           log_prob_0 = dist.log_prob(raction)[...,0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
+           log_prob_1 = dist.log_prob(raction)[...,1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
+           join = torch.cat((log_prob_0,log_prob_1),dim=1)
+           log_prob=join.sum(1)
+           
+           print(log_prob_0,log_prob_1)
+           print(log_prob)
+           entropy=dist.entropy().squeeze()
+           print(f"Grad_actions and logs snad entropy{action} and entropy is {entropy}")
+           exit()
+
         
         return action, log_prob,value,entropy
     
@@ -154,9 +191,13 @@ class Memory(Network):
                 probs=torch.from_numpy(prob[batch]).to(device)
                 _,log_prob,critic_value,entropy=self.get_action_and_value(states,actions)
                 old_probs=torch.exp(probs)
+                print("OLD_PROBS")
+                print(old_probs)
                 new_probs=torch.exp(log_prob)
-
-                r_t= new_probs/old_probs            
+                print("new_probs")
+                print(new_probs)
+                r_t= new_probs/old_probs 
+                print(r_t)           
                 weighted_probs=advantage[batch]*r_t
                 clip_weighted_probs=advantage[batch]*torch.clamp(r_t,0.8,1.2)
                 actor_loss=-torch.min(weighted_probs,clip_weighted_probs).mean()
@@ -165,7 +206,7 @@ class Memory(Network):
                 critic_loss=(returns-critic_value.squeeze(0))**2
                 critic_loss=critic_loss.mean()
                 # ety=ety.mean()
-                total_loss=actor_loss+0.5*critic_loss-0.1*entropy.mean()
+                total_loss=actor_loss+0.5*critic_loss-0.05*entropy.mean()
                 self.total_loss_wab=total_loss
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
