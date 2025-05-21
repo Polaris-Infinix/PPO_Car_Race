@@ -68,36 +68,36 @@ class Network(nn.Module):
             action_1 = torch.sigmoid(raction_1)
             action = torch.cat((action_0, action_1), dim=-1)  
         
-            print(dist.log_prob(raction))
+            # print(dist.log_prob(raction))
             log_prob_0 = dist.log_prob(raction).squeeze()[0] - torch.log(1 - action_0.pow(2) + 1e-6)
             log_prob_1 = dist.log_prob(raction).squeeze()[1] - torch.log(action_1[0] * (1 - action_1[0]) + 1e-6)
             log_prob_2 = dist.log_prob(raction).squeeze()[2] - torch.log(action_1[1] * (1 - action_1[1]) + 1e-6)
-            print(log_prob_0)
-            print(log_prob_1)
-            print(log_prob_2)
+            # print(log_prob_0)
+            # print(log_prob_1)
+            # print(log_prob_2)
 
             log_prob = log_prob_0 + log_prob_1 + log_prob_2
-            print("log")
+            # print("log")
             action=torch.cat((action_0,action_1),dim=-1)
             entropy=dist.entropy().sum(dim=-1)
             action=tonumpy(action)
             log_prob=tonumpy(log_prob.squeeze())
-            print(log_prob)
-            print(f"No Grad strings-{action}")
+            # print(log_prob)
+            # print(f"No Grad strings-{action}")
 
         else:
-           print("Given action")
-           print(action)
+        #    print("Given action")
+        #    print(action)
            raction=dist.rsample().squeeze(0)
-           print(raction)
+        #    print(raction)
            raction_0 = raction[...,0:1]  
-           print(raction_0)
+        #    print(raction_0)
            raction_1 = raction[...,1:3]  
-           print(raction_1)
+        #    print(raction_1)
            action_0=action[...,0:1]
            action_1=action[...,1:3]
-           print("actions")
-           print(action_0,action_1)
+        #    print("actions")
+        #    print(action_0,action_1)
 
 
            
@@ -106,12 +106,10 @@ class Network(nn.Module):
            join = torch.cat((log_prob_0,log_prob_1),dim=1)
            log_prob=join.sum(1)
            
-           print(log_prob_0,log_prob_1)
-           print(log_prob)
-           entropy=dist.entropy().squeeze()
-           print(f"Grad_actions and logs snad entropy{action} and entropy is {entropy}")
-           exit()
-
+        #    print(log_prob_0,log_prob_1)
+        #    print(log_prob)
+           entropy=dist.entropy().squeeze().sum(1)
+        #    print(f"Grad_actions and logs snad entropy{action} and entropy is {entropy}")
         
         return action, log_prob,value,entropy
     

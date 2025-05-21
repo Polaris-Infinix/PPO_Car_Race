@@ -7,7 +7,7 @@ import torch
 
 class Environment():
     def __init__(self):
-        pass
+        self.i=0
 
     def create_env(self):
         self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True, max_episode_steps=1050)
@@ -31,16 +31,13 @@ class Environment():
      
     # Ths handles frame stacking and deals with the nuainces of the environment observation 
     def input(self,action=np.array([0,0,0])):
-        kd=self.env.action_space.sample()
-        obs, reward, done, truncated, info = self.env.step(kd)
-        print(self.env.action_space.sample())
-        print(kd)
+        obs, reward, done, truncated, info = self.env.step(action)
         self.obs_r = torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1)
         state=torch.cat((self.obs_r,self.obs_m,self.obs_l),dim=2)
         # print(state.size())
         self.obs_l=self.obs_m
         self.obs_m=self.obs_r
-        print(info)
+
         return state,reward,done,truncated
     
         

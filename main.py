@@ -38,7 +38,7 @@ if load is True:
 #Trajectory created for 200 episodes each 
 while k < episodes:
     while i<episode_length:
-        for j in range(1): #nuances in my code 
+        if i==0 and k==0: #nuances in my code 
             state, reward, truncated, done= env.input()
             action,log_prob,value,entropy=memory.get_action_and_value(state.unsqueeze(0).to(device))
         
