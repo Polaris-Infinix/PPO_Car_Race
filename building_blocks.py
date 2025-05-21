@@ -9,7 +9,6 @@ def tonumpy(tensor):
     tensor=tensor.to("cpu")
     tensor=tensor.detach()
     return tensor.numpy()
-# Layer initialization 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
@@ -47,7 +46,7 @@ class Network(nn.Module):
             nn.ReLU(),
             layer_init(nn.Linear(512,1)),
         )
-        self.actor_optimizer=optim.Adam(self.actor.parameters(),lr=2.5e-4)
+        self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.log_std], lr=2.5e-4)
         self.critic_optimizer=optim.Adam(self.critic.parameters(),lr=1e-3)
         self.device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
@@ -59,60 +58,43 @@ class Network(nn.Module):
         dist=Normal(mean,std)
 
         if action is None:
-            raction=dist.rsample().squeeze(0)
-            raction_0 = raction[0:1]  
+            raction = dist.rsample()
+            log_prob=dist.log_prob(raction)
+            raction=raction.squeeze(0)
+            log_prob=log_prob.squeeze(0)
+            raction_0 = raction[0:1]
             raction_1 = raction[1:3]
-
-
             action_0 = torch.tanh(raction_0)
             action_1 = torch.sigmoid(raction_1)
-            action = torch.cat((action_0, action_1), dim=-1)  
-        
-            # print(dist.log_prob(raction))
-            log_prob_0 = dist.log_prob(raction).squeeze()[0] - torch.log(1 - action_0.pow(2) + 1e-6)
-            log_prob_1 = dist.log_prob(raction).squeeze()[1] - torch.log(action_1[0] * (1 - action_1[0]) + 1e-6)
-            log_prob_2 = dist.log_prob(raction).squeeze()[2] - torch.log(action_1[1] * (1 - action_1[1]) + 1e-6)
-            # print(log_prob_0)
-            # print(log_prob_1)
-            # print(log_prob_2)
+            action = torch.cat([action_0, action_1], dim=-1)    
 
-            log_prob = log_prob_0 + log_prob_1 + log_prob_2
-            # print("log")
-            action=torch.cat((action_0,action_1),dim=-1)
-            entropy=dist.entropy().sum(dim=-1)
-            action=tonumpy(action)
-            log_prob=tonumpy(log_prob.squeeze())
-            # print(log_prob)
-            # print(f"No Grad strings-{action}")
+            log_prob_0 = log_prob[0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
+            log_prob_1 = log_prob[1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
+
+            log_prob = (log_prob_0.sum() + log_prob_1.sum()).unsqueeze(0)
+            entropy = dist.entropy().sum().unsqueeze(0)
+
+            action = tonumpy(action)
+            log_prob = tonumpy(log_prob)
 
         else:
-        #    print("Given action")
-        #    print(action)
-           raction=dist.rsample().squeeze(0)
-        #    print(raction)
-           raction_0 = raction[...,0:1]  
-        #    print(raction_0)
-           raction_1 = raction[...,1:3]  
-        #    print(raction_1)
-           action_0=action[...,0:1]
-           action_1=action[...,1:3]
-        #    print("actions")
-        #    print(action_0,action_1)
+            raction = dist.rsample()  
+            raction_0 = raction[..., 0:1]  
+            raction_1 = raction[..., 1:3] 
+
+            action_0 = action[..., 0:1] 
+            action_1 = action[..., 1:3]
+
+            log_prob = dist.log_prob(raction)  
+            log_prob_0 = log_prob[..., 0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
+            log_prob_1 = log_prob[..., 1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
+
+            log_prob = torch.cat([log_prob_0, log_prob_1], dim=-1).sum(dim=-1)
+            entropy = dist.entropy().sum(dim=-1)
+
+        return action, log_prob, value, entropy
 
 
-           
-           log_prob_0 = dist.log_prob(raction)[...,0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
-           log_prob_1 = dist.log_prob(raction)[...,1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
-           join = torch.cat((log_prob_0,log_prob_1),dim=1)
-           log_prob=join.sum(1)
-           
-        #    print(log_prob_0,log_prob_1)
-        #    print(log_prob)
-           entropy=dist.entropy().squeeze().sum(1)
-        #    print(f"Grad_actions and logs snad entropy{action} and entropy is {entropy}")
-        
-        return action, log_prob,value,entropy
-    
 
 class Memory(Network):
 
@@ -124,7 +106,6 @@ class Memory(Network):
         self.rewards = []
         self.done = []
         self.batch_size = batch_size
-        #self.policy=Network()
         super(Memory,self).__init__()
 
     def generate_batches(self):
@@ -178,7 +159,7 @@ class Memory(Network):
     def learn(self):
         advantage=self.advantages()
         advantage=torch.tensor(advantage).to(device)
-        for _ in range(10):
+        for _ in range(8):
             state,action,prob,values,rewards,entropy,batches=self.generate_batches()
             
             values=torch.from_numpy(values).to(device)
@@ -189,13 +170,8 @@ class Memory(Network):
                 probs=torch.from_numpy(prob[batch]).to(device)
                 _,log_prob,critic_value,entropy=self.get_action_and_value(states,actions)
                 old_probs=torch.exp(probs)
-                print("OLD_PROBS")
-                print(old_probs)
                 new_probs=torch.exp(log_prob)
-                print("new_probs")
-                print(new_probs)
                 r_t= new_probs/old_probs 
-                print(r_t)           
                 weighted_probs=advantage[batch]*r_t
                 clip_weighted_probs=advantage[batch]*torch.clamp(r_t,0.8,1.2)
                 actor_loss=-torch.min(weighted_probs,clip_weighted_probs).mean()
@@ -203,8 +179,7 @@ class Memory(Network):
                 returns=advantage[batch]+values[batch]
                 critic_loss=(returns-critic_value.squeeze(0))**2
                 critic_loss=critic_loss.mean()
-                # ety=ety.mean()
-                total_loss=actor_loss+0.5*critic_loss-0.05*entropy.mean()
+                total_loss=actor_loss+0.5*critic_loss-0.01*entropy.mean()
                 self.total_loss_wab=total_loss
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
@@ -212,7 +187,6 @@ class Memory(Network):
                 total_loss.backward()
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
-            #print("epoch")
         self.clear_memory()
 
     def save_model(self, filename="ppo_checkpoint.pth"):

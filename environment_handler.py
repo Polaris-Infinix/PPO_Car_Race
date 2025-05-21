@@ -10,9 +10,8 @@ class Environment():
         self.i=0
 
     def create_env(self):
-        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True, max_episode_steps=1050)
-        # print(np.prod(self.env.single_action_space.shape))
-           
+        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="human", domain_randomize=False, continuous=True, max_episode_steps=252)
+   
     
     #Run first 50 frames without action or obeservation  as this is the intro 
     def dry_run(self,dry_frames=52):
@@ -34,7 +33,6 @@ class Environment():
         obs, reward, done, truncated, info = self.env.step(action)
         self.obs_r = torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1)
         state=torch.cat((self.obs_r,self.obs_m,self.obs_l),dim=2)
-        # print(state.size())
         self.obs_l=self.obs_m
         self.obs_m=self.obs_r
 

@@ -4,8 +4,8 @@ from environment_handler import Environment
 from building_blocks import *
 
 #hyperparameters
-load=False
-episode_length=200
+load=True
+episode_length=250
 episodes=2000
 
 
@@ -52,7 +52,6 @@ while k < episodes:
             break
     total_rewards.append(memory.give_only_reward())
     totalepisodeslength.append(i)
-    print(totalepisodeslength,total_rewards)
     memory.learn()
     i=0
     
