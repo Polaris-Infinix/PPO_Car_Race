@@ -1,7 +1,7 @@
 import torch 
 import numpy as np
 import torch.nn as nn
-from  torch.distributions import Normal
+from torch.distributions import Categorical
 import torch.optim as optim 
 from collections import deque
 
@@ -22,74 +22,46 @@ class Network(nn.Module):
     def __init__(self):
         super(Network,self).__init__()
         self.actor=nn.Sequential(
-            layer_init(nn.Conv2d(3,16,5,padding=1,stride=2)),
+            layer_init(nn.Linear(8,200)),
             nn.ReLU(),
-            layer_init(nn.Conv2d(16,32,4,2,1)),
+            layer_init(nn.Linear(200,150)),
             nn.ReLU(),
-            layer_init(nn.Conv2d(32,64,3,2,1)),
+            layer_init(nn.Linear(150,50)),
             nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(27648,512)),
-            nn.ReLU(),
-            layer_init(nn.Linear(512,3)),
+            layer_init(nn.Linear(50,3)),
+            nn.Softmax(dim=-1)
         )
-        self.log_std=nn.Parameter(torch.zeros(1,3))
+
         self.critic=nn.Sequential(
-            layer_init(nn.Conv2d(3,16,5,padding=1,stride=2)),
+            layer_init(nn.Linear(8,200)),
             nn.ReLU(),
-            layer_init(nn.Conv2d(16,32,4,2,1)),
+            layer_init(nn.Linear(200,150)),
             nn.ReLU(),
-            layer_init(nn.Conv2d(32,64,3,2,1)),
+            layer_init(nn.Linear(150,50)),
             nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(27648,512)),
-            nn.ReLU(),
-            layer_init(nn.Linear(512,1)),
+            layer_init(nn.Linear(50,1))
         )
-        self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.log_std], lr=2.5e-4)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=2.5e-4)
         self.critic_optimizer=optim.Adam(self.critic.parameters(),lr=1e-3)
         self.device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
     def get_action_and_value(self,state,action=None):
-        mean=self.actor(state)
+        state=torch.Tensor(state).to(device)
+        act=self.actor(state)
         value=self.critic(state)
-        std=torch.exp(self.log_std)
-        dist=Normal(mean,std)
-
+        dist=Categorical(act)
         if action is None:
-            raction = dist.rsample()
-            log_prob=dist.log_prob(raction)
-            raction=raction.squeeze(0)
+            action = dist.sample()
+            log_prob=dist.log_prob(action)
             log_prob=log_prob.squeeze(0)
-            raction_0 = raction[0:1]
-            raction_1 = raction[1:3]
-            action_0 = torch.tanh(raction_0)
-            action_1 = torch.sigmoid(raction_1)
-            action = torch.cat([action_0, action_1], dim=-1)    
-
-            log_prob_0 = log_prob[0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
-            log_prob_1 = log_prob[1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
-
-            log_prob = (log_prob_0.sum() + log_prob_1.sum()).unsqueeze(0)
-            entropy = dist.entropy().sum().unsqueeze(0)
-
             action = tonumpy(action)
             log_prob = tonumpy(log_prob)
+            entropy=None
 
         else:
-            raction = dist.rsample()  
-            raction_0 = raction[..., 0:1]  
-            raction_1 = raction[..., 1:3] 
-
-            action_0 = action[..., 0:1] 
-            action_1 = action[..., 1:3]
-
-            log_prob = dist.log_prob(raction)  
-            log_prob_0 = log_prob[..., 0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
-            log_prob_1 = log_prob[..., 1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
-
-            log_prob = torch.cat([log_prob_0, log_prob_1], dim=-1).sum(dim=-1)
+            log_prob = dist.log_prob(action)  
+            action=action
             entropy = dist.entropy().sum(dim=-1)
 
         return action, log_prob, value, entropy
@@ -124,12 +96,12 @@ class Memory(Network):
             batches
 
     def store_memory(self, state, action, probs, vals, reward, done):
-        self.states.append(tonumpy(state))
+        self.states.append(state)
         self.actions.append(action)
         self.probs.append(probs)
-        self.vals.append(tonumpy(vals[0][0]))
+        self.vals.append(tonumpy(vals[0]))
         self.rewards.append(reward)
-        self.done.append((tonumpy(done)))
+        self.done.append((done))
 
     def clear_memory(self):
         self.states = []
@@ -193,7 +165,7 @@ class Memory(Network):
         torch.save({
             "actor_state_dict": self.actor.state_dict(),
             "critic_state_dict": self.critic.state_dict(),
-            "log_std": self.log_std,
+            # "log_std": self.log_std,
             "actor_optimizer_state_dict": self.actor_optimizer.state_dict(),
             "critic_optimizer_state_dict": self.critic_optimizer.state_dict(),
         }, "ppo_checkpoint.pth")

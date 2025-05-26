@@ -1,25 +1,20 @@
 import torch 
 import wandb
-from environment_handler import Environment
 from building_blocks import *
+import gymnasium as gym 
 
 #hyperparameters
-load=True
+load=False
 episode_length=250
 episodes=2000
-
-
-
 # WandB Login 
 wandb.login()
-env=Environment()
-env.dry_run()
 memory=Memory()
 done= False
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+env=gym.make("LunarLander-v3",render_mode ="human")
 wandb.init(
-    project="ppo-atari",          
+    project="Lunar_lander",          
     name="run-004",              
     config={
         "learning_rate": 0.0002,
@@ -38,14 +33,14 @@ if load is True:
 #Trajectory created for 200 episodes each 
 while k < episodes:
     while i<episode_length:
-        if i==0 and k==0: #nuances in my code 
-            state, reward, truncated, done= env.input()
-            action,log_prob,value,entropy=memory.get_action_and_value(state.unsqueeze(0).to(device))
+        if i==0: #nuances in my code 
+            state, info= env.reset()
+            action,log_prob,value,entropy=memory.get_action_and_value(state)
         
-        state,reward,truncated,done=env.input(action)
-
-        action,log_prob,value,entropy=memory.get_action_and_value(state.unsqueeze(0).to(device))
+        state,reward,truncated,done,info=env.step(action)
+        action,log_prob,value,entropy=memory.get_action_and_value(state)
         done=truncated or done 
+        print(value)
         memory.store_memory(state,action,log_prob,value,reward,entropy)
         i+=1
         if done:
@@ -56,7 +51,6 @@ while k < episodes:
     i=0
     
     if done:
-        env.dry_run()
         k=k+1
         total=sum(total_rewards)
         tol_epi_len=sum(totalepisodeslength)
