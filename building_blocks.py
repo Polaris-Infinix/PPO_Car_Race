@@ -77,6 +77,11 @@ class Memory(Network):
         self.rewards = []
         self.done = []
         self.batch_size = batch_size
+        self.count=0
+        self.actor_losses = 0
+        self.critic_losses = 0
+        self.entropies = 0
+
         super(Memory,self).__init__()
 
     def generate_batches(self):
@@ -128,7 +133,13 @@ class Memory(Network):
         return adv
     
     def learn(self):
+        self.count+=1
+        ep_actor_losses = []
+        ep_critic_losses = []
+        ep_entropies = []
         advantage=self.advantages()
+        m=-0.01/2000
+        entropy_coef=m*self.count+0.01
         advantage=torch.tensor(advantage).to(device)
         for _ in range(8):
             state,action,prob,values,rewards,entropy,batches=self.generate_batches()
@@ -147,11 +158,14 @@ class Memory(Network):
 
                 returns=advantage[batch]+values[batch]
                 # print(f'critic before {critic_value}')
-                critic_value=critic_value.squeeze(0)
+                critic_value=critic_value.squeeze(-1)
                 # print(f'critic {critic_value}')
                 critic_loss=(returns-critic_value)**2
                 critic_loss=critic_loss.mean()
-                total_loss=actor_loss+0.5*critic_loss-0.01*entropy.mean()
+                total_loss=actor_loss+0.5*critic_loss-entropy_coef*entropy.mean()
+                ep_actor_losses.append(actor_loss.item())
+                ep_critic_losses.append(critic_loss.item())
+                ep_entropies.append(entropy.mean().item())
                 self.total_loss_wab=total_loss      
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
@@ -160,6 +174,9 @@ class Memory(Network):
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
         self.clear_memory()
+        self.actor_losses=np.mean(ep_actor_losses)
+        self.critic_losses=(np.mean(ep_critic_losses))
+        self.entropies=(np.mean(ep_entropies))
 
     def save_model(self, filename="ppo_checkpoint.pth"):
         torch.save({

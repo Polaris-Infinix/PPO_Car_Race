@@ -5,7 +5,7 @@ import gymnasium as gym
 
 #hyperparameters
 load=False
-episode_length=250
+episode_length=2000
 episodes=2000
 # WandB Login 
 wandb.login()
@@ -53,12 +53,13 @@ while k < episodes:
         k=k+1
         total=sum(total_rewards)
         tol_epi_len=sum(totalepisodeslength)
-        print(f"Episode:{k-1} Episode_length{tol_epi_len} Rewards gained {total}\n")
+        print(f"Episode:{k} Episode_length{tol_epi_len} Rewards gained {total}\n")
         wandb.log({
             "Episode_length":tol_epi_len,
-            "Total_loss": memory.total_loss_wab,
+            "Actor Loss": memory.actor_losses,
+            "Critic Loss":memory.critic_losses,
+            "Entropy":memory.entropies,
             "returns": total,
-            "Step": k-1
             })
         memory.save_model()
         total_rewards=[]
