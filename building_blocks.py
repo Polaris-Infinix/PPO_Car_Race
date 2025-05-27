@@ -28,7 +28,7 @@ class Network(nn.Module):
             nn.ReLU(),
             layer_init(nn.Linear(150,50)),
             nn.ReLU(),
-            layer_init(nn.Linear(50,3)),
+            layer_init(nn.Linear(50,4)),
             nn.Softmax(dim=-1)
         )
 
@@ -50,11 +50,10 @@ class Network(nn.Module):
         state=torch.Tensor(state).to(device)
         act=self.actor(state)
         value=self.critic(state)
-        dist=Categorical(act)
+        dist=Categorical(probs=act)
         if action is None:
             action = dist.sample()
             log_prob=dist.log_prob(action)
-            log_prob=log_prob.squeeze(0)
             action = tonumpy(action)
             log_prob = tonumpy(log_prob)
             entropy=None
@@ -62,14 +61,14 @@ class Network(nn.Module):
         else:
             log_prob = dist.log_prob(action)  
             action=action
-            entropy = dist.entropy().sum(dim=-1)
+            entropy = dist.entropy()
+            # print(f'entropy{entropy}')
 
         return action, log_prob, value, entropy
 
 
 
 class Memory(Network):
-
     def __init__(self, batch_size=5):
         self.states = []
         self.probs = []
@@ -99,7 +98,7 @@ class Memory(Network):
         self.states.append(state)
         self.actions.append(action)
         self.probs.append(probs)
-        self.vals.append(tonumpy(vals[0]))
+        self.vals.append(tonumpy(vals))
         self.rewards.append(reward)
         self.done.append((done))
 
@@ -133,26 +132,27 @@ class Memory(Network):
         advantage=torch.tensor(advantage).to(device)
         for _ in range(8):
             state,action,prob,values,rewards,entropy,batches=self.generate_batches()
-            
             values=torch.from_numpy(values).to(device)
         
             for batch in batches:
                 states=torch.from_numpy(state[batch]).to(device)
                 actions=torch.from_numpy(action[batch]).to(device)
-                probs=torch.from_numpy(prob[batch]).to(device)
-                _,log_prob,critic_value,entropy=self.get_action_and_value(states,actions)
-                old_probs=torch.exp(probs)
-                new_probs=torch.exp(log_prob)
-                r_t= new_probs/old_probs 
+                old_log_probs=torch.from_numpy(prob[batch]).to(device)
+                _,new_log_prob,critic_value,entropy=self.get_action_and_value(states,actions)
+                r_t=torch.exp(new_log_prob-old_log_probs)
+                # print(r_t)
                 weighted_probs=advantage[batch]*r_t
                 clip_weighted_probs=advantage[batch]*torch.clamp(r_t,0.8,1.2)
                 actor_loss=-torch.min(weighted_probs,clip_weighted_probs).mean()
 
                 returns=advantage[batch]+values[batch]
-                critic_loss=(returns-critic_value.squeeze(0))**2
+                # print(f'critic before {critic_value}')
+                critic_value=critic_value.squeeze(0)
+                # print(f'critic {critic_value}')
+                critic_loss=(returns-critic_value)**2
                 critic_loss=critic_loss.mean()
                 total_loss=actor_loss+0.5*critic_loss-0.01*entropy.mean()
-                self.total_loss_wab=total_loss
+                self.total_loss_wab=total_loss      
                 self.returns=returns.mean()
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
@@ -206,4 +206,4 @@ class Memory(Network):
 
 
 
-         
+    

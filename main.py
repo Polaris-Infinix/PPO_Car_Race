@@ -40,7 +40,6 @@ while k < episodes:
         state,reward,truncated,done,info=env.step(action)
         action,log_prob,value,entropy=memory.get_action_and_value(state)
         done=truncated or done 
-        print(value)
         memory.store_memory(state,action,log_prob,value,reward,entropy)
         i+=1
         if done:
@@ -54,6 +53,7 @@ while k < episodes:
         k=k+1
         total=sum(total_rewards)
         tol_epi_len=sum(totalepisodeslength)
+        print(f"Episode:{k-1} Episode_length{tol_epi_len} Rewards gained {total}\n")
         wandb.log({
             "Episode_length":tol_epi_len,
             "Total_loss": memory.total_loss_wab,
