@@ -32,35 +32,31 @@ if load is True:
 
 #Trajectory created for 200 episodes each 
 while k < episodes:
-    while i<episode_length:
-        if i==0: #nuances in my code 
-            state, info= env.reset()
-            action,log_prob,value,entropy=memory.get_action_and_value(state)
-        
-        state,reward,truncated,done,info=env.step(action)
-        action,log_prob,value,entropy=memory.get_action_and_value(state)
-        done=truncated or done 
-        memory.store_memory(state,action,log_prob,value,reward,entropy)
+    state,info=env.reset()
+    while not done:
+        action, log_prob, value,_=memory.get_action_and_value(state)
+        state_n,reward, truncated,done, info=env.step(action)
+        done =done  or truncated
+        memory.store_memory(state, action, log_prob, value, reward, done)
+        state=state_n
         i+=1
-        if done:
-            break
+        
     total_rewards.append(memory.give_only_reward())
     totalepisodeslength.append(i)
     memory.learn()
     i=0
-    
-    if done:
-        k=k+1
-        total=sum(total_rewards)
-        tol_epi_len=sum(totalepisodeslength)
-        print(f"Episode:{k} Episode_length{tol_epi_len} Rewards gained {total}\n")
-        wandb.log({
-            "Episode_length":tol_epi_len,
-            "Actor Loss": memory.actor_losses,
-            "Critic Loss":memory.critic_losses,
-            "Entropy":memory.entropies,
-            "returns": total,
-            })
-        memory.save_model()
-        total_rewards=[]
-        totalepisodeslength=[]
+    k+=1
+    total=sum(total_rewards)
+    tol_epi_len=sum(totalepisodeslength)
+    print(f"Episode:{k} Episode_length{tol_epi_len} Rewards gained {total}\n")
+    wandb.log({
+        "Episode_length":tol_epi_len,
+        "Actor Loss": memory.actor_losses,
+        "Critic Loss":memory.critic_losses,
+        "Entropy":memory.entropies,
+        "returns": total,
+        })
+    memory.save_model()
+    total_rewards=[]
+    totalepisodeslength=[]
+    done=False
