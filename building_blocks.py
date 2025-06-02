@@ -60,7 +60,6 @@ class Network(nn.Module):
 
         else:
             log_prob = dist.log_prob(action)  
-            action=action
             entropy = dist.entropy()
             # print(f'entropy{entropy}')
 
