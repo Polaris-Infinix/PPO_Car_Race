@@ -138,7 +138,7 @@ for m in range(500):
     epoch=5
     cont=True if done_t[-1]==0  else False
     for _ in range(epoch):
-        batch_size=5
+        batch_size=64
         n_states = len(states_t)
         batch_start = np.arange(0, n_states, batch_size)
         indices = np.arange(n_states, dtype=np.int64)
