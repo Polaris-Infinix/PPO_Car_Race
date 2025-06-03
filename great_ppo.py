@@ -11,16 +11,19 @@ env=gym.make("LunarLander-v3")
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 normalize=True
 learning_rate=1e-4
+mini_batch=64
+batch_size=250
 wandb.init(
     project="Lunar_lander",          
     name="run-88",              
     config={
         "learning_rate": learning_rate,
-        "batch_size": 200,
+        "batch_size": batch_size,
         "update_epochs": 10,
         "clip_coef": 0.2,
-        "env": "Car Racing",
-        "Normalize":normalize
+        "env": "Lunar_lander",
+        "Normalize":normalize,
+        "mini batch size":mini_batch
     }
 )
 
@@ -67,9 +70,9 @@ class agent(nn.Module):
 model=agent().to(device)
 optimizer=optim.Adam(model.parameters(),lr=learning_rate,eps=1e-5) 
 cont=False
-for m in range(500):
+for m in range(2000):
     #Tensors for storage
-    n_steps=400
+    n_steps=batch_size
     states_t=torch.zeros(n_steps,8).to(device)
     action_t=torch.zeros(n_steps,1).to(device)
     reward_t=torch.zeros(n_steps,1).to(device)
@@ -138,12 +141,11 @@ for m in range(500):
     epoch=5
     cont=True if done_t[-1]==0  else False
     for _ in range(epoch):
-        batch_size=64
         n_states = len(states_t)
-        batch_start = np.arange(0, n_states, batch_size)
+        batch_start = np.arange(0, n_states, mini_batch)
         indices = np.arange(n_states, dtype=np.int64)
         np.random.shuffle(indices)
-        batches = [indices[i:i + batch_size] for i in batch_start]
+        batches = [indices[i:i + mini_batch] for i in batch_start]
         
         for batch in batches:
             states_s= states_t[batch]
