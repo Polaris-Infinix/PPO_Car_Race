@@ -9,15 +9,18 @@ from torch.distributions import Categorical
 
 env=gym.make("LunarLander-v3")
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+normalize=True
+learning_rate=1e-4
 wandb.init(
     project="Lunar_lander",          
     name="run-88",              
     config={
-        "learning_rate": 0.0002,
+        "learning_rate": learning_rate,
         "batch_size": 200,
         "update_epochs": 10,
         "clip_coef": 0.2,
-        "env": "Car Racing"
+        "env": "Car Racing",
+        "Normalize":normalize
     }
 )
 
@@ -62,7 +65,7 @@ class agent(nn.Module):
 
 
 model=agent().to(device)
-optimizer=optim.Adam(model.parameters(),lr=1e-3,eps=1e-5) 
+optimizer=optim.Adam(model.parameters(),lr=learning_rate,eps=1e-5) 
 cont=False
 for m in range(500):
     #Tensors for storage
@@ -85,7 +88,7 @@ for m in range(500):
 
         while not done and t<n_steps:
             state=torch.tensor(state).unsqueeze(0).to(device)
-            action, log_prob, entropy, value= model.get_actions_probs(state)
+            action, log_prob, _, value= model.get_actions_probs(state)
             state_n,reward, truncated, done, info =env.step(action.squeeze(0).cpu().numpy())
             done=truncated or done
             states_t[t]=state.squeeze(0)
@@ -111,7 +114,7 @@ for m in range(500):
                 nextnonterminal = 1.0 - next_done
                 nextvalues = next_value
             else:
-                nextnonterminal = 1.0 - done_t[t + 1]
+                nextnonterminal = 1.0 - done_t[t]
                 nextvalues = value_t[t + 1]
             delta = reward_t[t] + gamma * nextvalues * nextnonterminal - value_t[t]
             advantages[t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
@@ -124,7 +127,8 @@ for m in range(500):
     log_prob_t=log_prob_t.flatten()
     action_t=action_t.flatten()
     advantages, returns=adv()
-    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+    if normalize:
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
 
     wandb.log({
@@ -162,6 +166,7 @@ for m in range(500):
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
+            exit()
 
 
 torch.save({
