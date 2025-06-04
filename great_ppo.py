@@ -138,11 +138,10 @@ for m in range(2000):
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
 
-    wandb.log({
-        "returns": returns.mean().item(),
-        "reward":reward_t.mean()
-        })
-
+    
+   
+    returns_w_a_B= returns.mean().item(),
+    reward_w_a_B=reward_t.mean().item()
     epoch=5
     cont=True if done_t[-1]==0  else False
     for _ in range(epoch):
@@ -176,10 +175,13 @@ for m in range(2000):
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
     wandb.log({
+        "returns":returns_w_a_B,
+        "reward":reward_w_a_B,
         "total_loss" : sum(tl) / len(tl),
         "Actor_loss":sum(al) / len(al),
         "critic_loss":sum(cl)/len(cl),
         "Entropy":sum(et)/len(et)    
+
     })
         
 
