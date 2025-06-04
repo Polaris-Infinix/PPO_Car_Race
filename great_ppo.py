@@ -15,7 +15,7 @@ mini_batch=64
 batch_size=250
 wandb.init(
     project="Lunar_lander",          
-    name="run-88",              
+    name="run-112",              
     config={
         "learning_rate": learning_rate,
         "batch_size": batch_size,
@@ -162,15 +162,15 @@ for m in range(2000):
             weighted_probs=-r_t*advantages[batch]
             weighted_probs_clip=-torch.clamp(r_t,0.8,1.2)*advantages[batch]
             actorloss=torch.max(weighted_probs,weighted_probs_clip).mean()
-            al.append(actorloss)
+            al.append(actorloss.item())
             critic_loss=(returns[batch]-new_value.flatten())**2
-            cl.append(critic_loss)
             critic_loss=critic_loss.mean()
+            cl.append(critic_loss.item())
             entropy_loss=entropy.mean()
-            et.append(entropy_loss)
+            et.append(entropy_loss.item())
 
             total_loss=actorloss+0.5*critic_loss-0.01*entropy_loss
-            tl.append(total_loss)
+            tl.append(total_loss.item())
             optimizer.zero_grad()
             total_loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
