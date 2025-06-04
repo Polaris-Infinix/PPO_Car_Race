@@ -80,6 +80,10 @@ for m in range(2000):
     log_prob_t=torch.zeros(n_steps,1).to(device)
     done_t=torch.zeros(n_steps,1).to(device)
     t=0
+    tl=[]
+    al=[]
+    cl=[]
+    et=[]
     done=False
     while t< n_steps:
         done=False
@@ -135,7 +139,8 @@ for m in range(2000):
 
 
     wandb.log({
-        "returns": returns.mean().item()
+        "returns": returns.mean().item(),
+        "reward":reward_t.mean()
         })
 
     epoch=5
@@ -157,18 +162,28 @@ for m in range(2000):
             weighted_probs=-r_t*advantages[batch]
             weighted_probs_clip=-torch.clamp(r_t,0.8,1.2)*advantages[batch]
             actorloss=torch.max(weighted_probs,weighted_probs_clip).mean()
+            al.append(actorloss)
             critic_loss=(returns[batch]-new_value.flatten())**2
+            cl.append(critic_loss)
             critic_loss=critic_loss.mean()
             entropy_loss=entropy.mean()
+            et.append(entropy_loss)
 
             total_loss=actorloss+0.5*critic_loss-0.01*entropy_loss
-
-            print(total_loss)
-
+            tl.append(total_loss)
             optimizer.zero_grad()
             total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
-            exit()
+    wandb.log({
+        "total_loss" : sum(tl) / len(tl),
+        "Actor_loss":sum(al) / len(al),
+        "critic_loss":sum(cl)/len(cl),
+        "Entropy":sum(et)/len(et)    
+    })
+        
+
+            
 
 
 torch.save({
