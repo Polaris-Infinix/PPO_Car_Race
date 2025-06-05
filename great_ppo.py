@@ -10,20 +10,23 @@ from torch.distributions import Categorical
 env=gym.make("LunarLander-v3")
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 normalize=True
-learning_rate=1e-4
+actor_learning_rate=1e-4
+critic_learning_rate=1e-3
 mini_batch=64
-batch_size=250
+batch_size=1026
 wandb.init(
     project="Lunar_lander",          
     name="run-112",              
     config={
-        "learning_rate": learning_rate,
+        "act_learning_rate": actor_learning_rate,
+        "critic_learning_rate":critic_learning_rate,
         "batch_size": batch_size,
         "update_epochs": 10,
         "clip_coef": 0.2,
         "env": "Lunar_lander",
         "Normalize":normalize,
-        "mini batch size":mini_batch
+        "mini batch size":mini_batch,
+        "done":0
     }
 )
 
@@ -68,7 +71,9 @@ class agent(nn.Module):
 
 
 model=agent().to(device)
-optimizer=optim.Adam(model.parameters(),lr=learning_rate,eps=1e-5) 
+optimizer_act=optim.Adam(model.actor.parameters(),lr=actor_learning_rate,eps=1e-5) 
+optimizer_critic=optim.Adam(model.critic.parameters(),lr=critic_learning_rate,eps=1e-5)
+
 cont=False
 for m in range(2000):
     #Tensors for storage
@@ -140,7 +145,7 @@ for m in range(2000):
 
     
    
-    returns_w_a_B= returns.mean().item(),
+    returns_w_a_B= returns.mean().item()
     reward_w_a_B=reward_t.mean().item()
     epoch=5
     cont=True if done_t[-1]==0  else False
@@ -170,10 +175,12 @@ for m in range(2000):
 
             total_loss=actorloss+0.5*critic_loss-0.01*entropy_loss
             tl.append(total_loss.item())
-            optimizer.zero_grad()
+            optimizer_act.zero_grad()
+            optimizer_critic.zero_grad()
             total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
-            optimizer.step()
+            torch.nn.utils.clip_grad_norm_(model.actor.parameters(), max_norm=0.5)
+            optimizer_act.step()
+            optimizer_critic.step()
     wandb.log({
         "returns":returns_w_a_B,
         "reward":reward_w_a_B,
