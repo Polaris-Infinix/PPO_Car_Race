@@ -48,17 +48,20 @@ class agent(nn.Module):
         return action, log_prob,entropy,value 
     
 model=agent().to(device)
-checkpoint = torch.load("ppo_01.pth", map_location=device)
+checkpoint = torch.load("ppo.pth", map_location=device)
 model.load_state_dict(checkpoint["model_state_dict"])
 model.eval()  # Set to evaluation mode if not training
     
+while True:
+    state, _ = env.reset()
+    rewards=[]
+    done = False
+    while not done:
+        state_tensor = torch.tensor(state).unsqueeze(0).float().to(device)
+        with torch.no_grad():
+            action, _, _, _ = model.get_actions_probs(state_tensor)
+        state, reward, terminated, truncated, _ = env.step(action.item())
+        rewards.append(reward)
+        done = terminated or truncated
+    print(f'Reward of an episode {sum(rewards)}')
 
-state, _ = env.reset()
-done = False
-while not done:
-    state_tensor = torch.tensor(state).unsqueeze(0).float().to(device)
-    with torch.no_grad():
-        action, _, _, _ = model.get_actions_probs(state_tensor)
-    state, reward, terminated, truncated, _ = env.step(action.item())
-    done = terminated or truncated
-env.close()
