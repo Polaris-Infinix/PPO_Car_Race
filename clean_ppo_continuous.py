@@ -17,7 +17,7 @@ mini_batch = 64
 batch_size = 2048
 epoch = 10
 clipping_eps = 0.2
-wb=True
+wb=False
 if wb:
     wandb.init(
         project="Car_racing",          
@@ -88,7 +88,7 @@ class agent(nn.Module):
         log_prob_1 = log_prob[1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
         log_prob = (log_prob_0.sum() + log_prob_1.sum())
         value = self.critic(obs)
-        return action, log_prob, value
+        return action, log_prob, value.squeeze(0)
     
     def get_actions_probs(self, obs, action):
         mean=self.actor(obs)
@@ -125,8 +125,7 @@ def compute_gae(rewards, values, dones, next_value, gamma=0.99, lam=0.95):
 model = agent().to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-5) 
 
-state = env.reset()
-state = torch.tensor(state, dtype=torch.float32, device=device)
+state = env.reset().to(device)
 
 for gen in range(2000):
     #Tensors for storage
@@ -141,6 +140,7 @@ for gen in range(2000):
         with torch.no_grad():
             action, log_prob, value = model.act(state.unsqueeze(0))
         next_state, reward, terminated, truncated = env.input(np.array([action[0].item(),action[1].item(),action[2].item()]))
+        
         done = terminated or truncated
         states[t] = state
         actions[t] = action
@@ -149,11 +149,10 @@ for gen in range(2000):
         log_probs[t] = log_prob
         dones[t] = float(done)
        
-        state = torch.tensor(next_state, dtype=torch.float32, device=device)
+        state = next_state.to(device)
 
         if done:
-            state = env.reset()
-            state = torch.tensor(state, dtype=torch.float32, device=device)
+            state = env.reset().to(device)
 
     with torch.no_grad():
         next_val = model.critic(state.unsqueeze(0))
