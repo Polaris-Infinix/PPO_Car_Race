@@ -17,7 +17,7 @@ mini_batch = 64
 batch_size = 2048
 epoch = 10
 clipping_eps = 0.2
-wb=False
+wb=True
 if wb:
     wandb.init(
         project="Car_racing",          
@@ -81,16 +81,13 @@ class agent(nn.Module):
         log_prob=dist.log_prob(raction).squeeze(0)
         raction_0 = raction[0:1]
         raction_1 = raction[1:3]
-        print(log_prob[0:1],log_prob[1:3])
         action_0 = torch.tanh(raction_0)
         action_1 = torch.sigmoid(raction_1)
-        print(action_0, action_1)
         action = torch.cat([action_0, action_1], dim=-1) 
         log_prob_0 = log_prob[0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
         log_prob_1 = log_prob[1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
         log_prob = (log_prob_0.sum() + log_prob_1.sum())
         value = self.critic(obs)
-        print(action,log_prob,value)
         return action, log_prob, value
     
     def get_actions_probs(self, obs, action):
@@ -99,14 +96,17 @@ class agent(nn.Module):
         dist=Normal(mean,std)
         action_0 = action[..., 0:1] 
         action_1 = action[..., 1:3] 
-        log_prob = dist.log_prob(action)  
+        raction_0 = torch.atanh(torch.clamp(action_0, -1.0 + 1e-7, 1.0 - 1e-7))
+        raction_1 = torch.logit(torch.clamp(action_1, 1e-7, 1.0 - 1e-7))
+        raction = torch.cat([raction_0, raction_1], dim=-1)
+        log_prob = dist.log_prob(raction)  
         log_prob_0 = log_prob[..., 0:1] - torch.log(1 - action_0.pow(2) + 1e-6)
         log_prob_1 = log_prob[..., 1:3] - torch.log(action_1 * (1 - action_1) + 1e-6)
         log_prob = torch.cat([log_prob_0, log_prob_1], dim=-1).sum(dim=-1)
         entropy = dist.entropy().sum(dim=-1)
 
         value = self.critic(obs)
-
+        
         return log_prob, entropy, value
 
 def compute_gae(rewards, values, dones, next_value, gamma=0.99, lam=0.95):
@@ -142,9 +142,7 @@ for gen in range(2000):
             action, log_prob, value = model.act(state.unsqueeze(0))
         next_state, reward, terminated, truncated = env.input(np.array([action[0].item(),action[1].item(),action[2].item()]))
         done = terminated or truncated
-        print(t)
         states[t] = state
-        print(states.size())
         actions[t] = action
         rewards[t] = reward
         values[t] = value
@@ -170,7 +168,7 @@ for gen in range(2000):
         
         for start in range(0, batch_size, mini_batch):
             batch_indices = indices[start:start+mini_batch]
-            print("Hello")
+
             state_batch = states[batch_indices]
             action_batch = actions[batch_indices]
             log_prob_batch = log_probs[batch_indices]
