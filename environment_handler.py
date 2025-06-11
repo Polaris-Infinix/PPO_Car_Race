@@ -35,12 +35,12 @@ class Environment():
         state=torch.cat((self.obs_r,self.obs_m,self.obs_l),dim=2)
         self.obs_l=self.obs_m
         self.obs_m=self.obs_r
-        return state,reward,done,truncated
+        return state/255,reward,done,truncated
     
     def reset(self):
         self.dry_run()
         state,reward,done,truncated=self.input(np.array([0,0,0]))
-        return state
+        return state/255
 
         
 

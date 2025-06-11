@@ -12,12 +12,12 @@ from environment_handler import Environment
 env=Environment()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 normalize = True
-learning_rate = 3e-4
+learning_rate = 5e-5
 mini_batch = 64
 batch_size = 2048
 epoch = 10
 clipping_eps = 0.2
-wb=False
+wb=True
 if wb:
     wandb.init(
         project="Car_racing",          
@@ -75,7 +75,8 @@ class agent(nn.Module):
     @torch.no_grad()
     def act(self, obs):
         mean=self.actor(obs)
-        std=torch.exp(self.log_std)
+        log_std=self.log_std.expand_as(mean)
+        std = torch.exp(log_std.clamp(-20,20 ))
         dist=Normal(mean,std)
         raction = dist.rsample().squeeze(0)
         log_prob=dist.log_prob(raction).squeeze(0)
@@ -92,7 +93,9 @@ class agent(nn.Module):
     
     def get_actions_probs(self, obs, action):
         mean=self.actor(obs)
-        std=torch.exp(self.log_std)
+        log_std=self.log_std.expand_as(mean)
+        std = torch.exp(log_std.clamp(-20,20 ))
+
         dist=Normal(mean,std)
         action_0 = action[..., 0:1] 
         action_1 = action[..., 1:3] 
@@ -106,7 +109,6 @@ class agent(nn.Module):
         entropy = dist.entropy().sum(dim=-1)
 
         value = self.critic(obs)
-        
         return log_prob, entropy, value
 
 def compute_gae(rewards, values, dones, next_value, gamma=0.99, lam=0.95):
@@ -156,6 +158,8 @@ for gen in range(2000):
 
     with torch.no_grad():
         next_val = model.critic(state.unsqueeze(0))
+    
+    entropy_coef=-(0.01/1775)*gen+0.01
 
     advantages, returns = compute_gae(rewards, values, dones, next_val)
     
@@ -184,7 +188,7 @@ for gen in range(2000):
             
             entropy_loss = entropy.mean()
 
-            total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy_loss
+            total_loss = actor_loss + 0.5 * critic_loss - entropy_coef * entropy_loss
 
             optimizer.zero_grad()
             total_loss.backward()
