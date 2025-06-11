@@ -7,10 +7,10 @@ import torch
 
 class Environment():
     def __init__(self):
-        self.i=0
+        pass
 
     def create_env(self):
-        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True, max_episode_steps=252)
+        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True)
    
     
     #Run first 50 frames without action or obeservation  as this is the intro 
