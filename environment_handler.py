@@ -10,7 +10,7 @@ class Environment():
         pass
 
     def create_env(self):
-        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=True)
+        self.env = gym.make("CarRacing-v3", lap_complete_percent=1,render_mode ="rgb_array", domain_randomize=False, continuous=False)
    
     
     #Run first 50 frames without action or obeservation  as this is the intro 
@@ -19,27 +19,31 @@ class Environment():
         obs, info = self.env.reset()
         for i in range(dry_frames):
             arr=np.array([0,0,0])
-            obs, reward, done, truncated, info = self.env.step(arr)
-            if i==dry_frames-2:
+            obs, reward, done, truncated, info = self.env.step(0)
+            if i==dry_frames-3:
                 obs_tensor = torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1)
                 self.obs_l=obs_tensor
-            elif i==dry_frames-1:
+            elif i==dry_frames-2:
                 obs_tensor = torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1)
                 self.obs_m=obs_tensor
+            elif i==dry_frames-1:
+                obs_tensor = torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1)
+                self.obs_rm=obs_tensor
 
      
     # Ths handles frame stacking and deals with the nuainces of the environment observation 
     def input(self,action):
         obs, reward, done, truncated, info = self.env.step(action)
         self.obs_r = torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1)
-        state=torch.cat((self.obs_r,self.obs_m,self.obs_l),dim=2)
+        state=torch.cat((self.obs_r,self.obs_rm,self.obs_m,self.obs_l),dim=2)
         self.obs_l=self.obs_m
-        self.obs_m=self.obs_r
+        self.obs_m=self.obs_rm
+        self.obs_rm=self.obs_r
         return state/255,reward,done,truncated
     
     def reset(self):
         self.dry_run()
-        state,reward,done,truncated=self.input(np.array([0,0,0]))
+        state,reward,done,truncated=self.input(0)
         return state/255
 
         
